@@ -1,0 +1,178 @@
+{
+  "name": "streamsense",
+  "displayName": "StreamSense — Real-time Data Intelligence",
+  "description": "Detect anomalies and monitor your data streams directly in VS Code. AI-powered insights without leaving your editor.",
+  "version": "0.1.0",
+  "publisher": "streamsense",
+  "icon": "resources/icon.png",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other", "Data Science", "Visualization"],
+  "keywords": ["monitoring", "anomaly detection", "data streams", "real-time", "AI", "analytics"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "streamsense.openDashboard",
+        "title": "StreamSense: Open Dashboard",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "streamsense.connectSource",
+        "title": "StreamSense: Connect Data Source",
+        "icon": "$(plug)"
+      },
+      {
+        "command": "streamsense.analyzeWithAI",
+        "title": "StreamSense: Analyze with AI",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "streamsense.toggleStream",
+        "title": "StreamSense: Pause/Resume Stream",
+        "icon": "$(debug-pause)"
+      },
+      {
+        "command": "streamsense.clearAlerts",
+        "title": "StreamSense: Clear All Alerts",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "streamsense.refreshSources",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "streamsense-sidebar",
+          "title": "StreamSense",
+          "icon": "resources/icon-mono.svg"
+        }
+      ]
+    },
+    "views": {
+      "streamsense-sidebar": [
+        {
+          "id": "streamsense.sourcesView",
+          "name": "Data Sources",
+          "icon": "$(database)"
+        },
+        {
+          "id": "streamsense.alertsView",
+          "name": "Live Alerts",
+          "icon": "$(bell)"
+        },
+        {
+          "id": "streamsense.metricsView",
+          "name": "Key Metrics",
+          "icon": "$(graph)"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "streamsense.refreshSources",
+          "when": "view == streamsense.sourcesView",
+          "group": "navigation"
+        },
+        {
+          "command": "streamsense.connectSource",
+          "when": "view == streamsense.sourcesView",
+          "group": "navigation"
+        },
+        {
+          "command": "streamsense.clearAlerts",
+          "when": "view == streamsense.alertsView",
+          "group": "navigation"
+        },
+        {
+          "command": "streamsense.analyzeWithAI",
+          "when": "view == streamsense.metricsView",
+          "group": "navigation"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "streamsense.openDashboard",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "StreamSense",
+      "properties": {
+        "streamsense.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Your StreamSense API key (get one at streamsense.io)"
+        },
+        "streamsense.apiUrl": {
+          "type": "string",
+          "default": "https://api.streamsense.io",
+          "description": "StreamSense API endpoint"
+        },
+        "streamsense.refreshInterval": {
+          "type": "number",
+          "default": 2000,
+          "description": "Data refresh interval in milliseconds (min: 500)"
+        },
+        "streamsense.anomalyThreshold": {
+          "type": "number",
+          "default": 2.5,
+          "description": "Z-score threshold for anomaly detection (default: 2.5σ)"
+        },
+        "streamsense.enableNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show VS Code notifications for critical anomalies"
+        },
+        "streamsense.enableStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show StreamSense status in the bottom status bar"
+        },
+        "streamsense.autoConnect": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically connect to saved sources on startup"
+        }
+      }
+    },
+    "keybindings": [
+      {
+        "command": "streamsense.openDashboard",
+        "key": "ctrl+shift+s",
+        "mac": "cmd+shift+s"
+      }
+    ],
+    "colors": [
+      {
+        "id": "streamsense.anomalyBackground",
+        "description": "Background color for anomaly highlights",
+        "defaults": { "dark": "#ff336622", "light": "#ff336611" }
+      }
+    ]
+  },
+  "scripts": {
+    "package": "vsce package",
+    "lint": "eslint src/",
+    "test": "node test/runTests.js"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^2.22.0",
+    "eslint": "^8.56.0"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/streamsense/vscode-extension"
+  },
+  "bugs": { "url": "https://github.com/streamsense/vscode-extension/issues" },
+  "homepage": "https://streamsense.io",
+  "license": "MIT"
+}
