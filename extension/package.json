@@ -2,7 +2,7 @@
   "name": "streamsense",
   "displayName": "StreamSense — Real-time Data Intelligence",
   "description": "Detect anomalies and monitor your data streams directly in VS Code. AI-powered insights without leaving your editor.",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "publisher": "streamsense",
   "icon": "resources/icon.png",
   "engines": { "vscode": "^1.85.0" },
@@ -107,12 +107,12 @@
         "streamsense.apiKey": {
           "type": "string",
           "default": "",
-          "description": "Your StreamSense API key (get one at streamsense.io)"
+          "description": "Your StreamSense Cloud API key (get one at streamsense.io, not required for local beta backend)"
         },
         "streamsense.apiUrl": {
           "type": "string",
           "default": "https://api.streamsense.io",
-          "description": "StreamSense API endpoint"
+          "description": "StreamSense Cloud API endpoint (used for SaaS, not for local beta backend)"
         },
         "streamsense.refreshInterval": {
           "type": "number",
@@ -138,6 +138,21 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically connect to saved sources on startup"
+        },
+        "streamsense.backendUrl": {
+          "type": "string",
+          "default": "http://localhost:4000",
+          "description": "Local StreamSense backend URL for beta testing (e.g. http://localhost:4000)"
+        },
+        "streamsense.backendEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable the local StreamSense backend (beta). When disabled, the local simulation engine is used."
+        },
+        "streamsense.backendApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "Optional API key sent as x-streamsense-key header to the backend."
         }
       }
     },

@@ -4,8 +4,8 @@
   "description": "StreamSense backend (Express + WebSocket)",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "NODE_ENV=development node src/server.js"
+    "dev": "NODE_ENV=development node src/server.js",
+    "start": "NODE_ENV=production node src/server.js"
   },
   "keywords": ["streamsense", "backend", "express", "websocket"],
   "author": "",

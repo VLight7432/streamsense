@@ -2,7 +2,7 @@
 
 > **Real-time anomaly detection for your data streams — directly in your editor.**
 
-[![Version](https://img.shields.io/badge/version-0.1.0-00c8f0.svg)](https://marketplace.visualstudio.com/items?itemName=streamsense.streamsense)
+[![Version](https://img.shields.io/badge/version-0.1.1-00c8f0.svg)](https://marketplace.visualstudio.com/items?itemName=streamsense.streamsense)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ---
@@ -45,19 +45,40 @@ StreamSense brings production data monitoring directly into your development wor
 ## Getting Started
 
 ### 1. Install the extension
-```
+```bash
 ext install streamsense.streamsense
 ```
 
 ### 2. Open the dashboard
 Press `Cmd+Shift+S` (Mac) or `Ctrl+Shift+S` (Windows/Linux), or click the StreamSense icon in the Activity Bar.
 
-### 3. Connect your first data source
-Click the `+` button in the **Data Sources** sidebar, or run `StreamSense: Connect Data Source` from the command palette.
+### 3. Choose your mode
 
-### 4. Configure your API key (optional)
-For AI analysis, add your StreamSense API key in settings:
-```json
+#### Demo Mode (local only)
+No configuration needed. StreamSense runs in **Demo Mode** automatically, simulating realistic e-commerce data streams so you can explore all features immediately.
+
+#### Backend Mode (beta)
+If you have access to a StreamSense backend (e.g. Azure App Service + Supabase):
+
+Add this to your VS Code settings (JSON view):
+
+```jsonc
+{
+  "streamsense.backendEnabled": true,
+  "streamsense.backendUrl": "https://streamsense-backend.azurewebsites.net",
+  "streamsense.backendApiKey": "your-backend-api-key"
+}
+```
+
+- `backendEnabled` : active l’utilisation du backend au lieu du simulateur pur.
+- `backendUrl` : URL de votre backend StreamSense (HTTP/HTTPS).
+- `backendApiKey` : clé API envoyée dans l’en-tête `x-streamsense-key` pour protéger votre backend.
+
+### 4. (Optionnel) Configurer votre API key IA
+
+Pour l’analyse IA, ajoutez votre clé StreamSense/Claude dans les settings :
+
+```jsonc
 {
   "streamsense.apiKey": "sk-..."
 }
@@ -69,13 +90,16 @@ For AI analysis, add your StreamSense API key in settings:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `streamsense.apiKey` | `""` | StreamSense API key |
-| `streamsense.apiUrl` | `https://api.streamsense.io` | API endpoint |
+| `streamsense.apiKey` | `""` | StreamSense / Claude API key for AI analysis |
+| `streamsense.apiUrl` | `https://api.streamsense.io` | Cloud API endpoint (future SaaS) |
 | `streamsense.refreshInterval` | `2000` | Data refresh in ms (min: 500) |
 | `streamsense.anomalyThreshold` | `2.5` | Z-score threshold (σ) |
 | `streamsense.enableNotifications` | `true` | VS Code notifications for critical anomalies |
 | `streamsense.enableStatusBar` | `true` | Status bar indicator |
 | `streamsense.autoConnect` | `true` | Auto-connect on startup |
+| `streamsense.backendEnabled` | `false` | Enable local/remote backend instead of pure demo mode |
+| `streamsense.backendUrl` | `http://localhost:4000` | Backend URL (local dev or deployed, e.g. Azure App Service) |
+| `streamsense.backendApiKey` | `""` | Optional backend API key sent as `x-streamsense-key` |
 
 ---
 
@@ -102,9 +126,11 @@ Use the **Anomaly Simulator** in the dashboard to inject artificial anomalies an
 ## Privacy & Security
 
 - All data processing happens **locally** by default
-- API keys are stored in VS Code's secure secret storage
+- When `backendEnabled` is `true`, only the data needed for metrics/alerts is sent to **your** backend URL
+- Backend requests can be protected with `x-streamsense-key` (see `streamsense.backendApiKey`)
+- API keys are stored in VS Code's secure secret storage when possible
 - No telemetry or data collection without explicit consent
-- GDPR compliant — your data never leaves your infrastructure
+- GDPR compliant — your data never leaves your infrastructure / backend
 
 ---
 

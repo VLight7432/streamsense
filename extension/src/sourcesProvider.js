@@ -15,8 +15,10 @@ class SourcesProvider {
 
   getTreeItem(element) { return element; }
 
-  getChildren(element) {
+  async getChildren(element) {
+    // Si on est à la racine de l’arbre, on s’appuie sur les sources connues
     if (!element) {
+      // Optionnel : on pourrait, à terme, mapper les streams backend sur des "sources" ici.
       if (this._engine.sources.length === 0) {
         return [new vscode.TreeItem('No sources connected', vscode.TreeItemCollapsibleState.None)];
       }

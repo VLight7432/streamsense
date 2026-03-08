@@ -1,6 +1,7 @@
 'use strict';
 
 const EventEmitter = require('events');
+const { fetchStreamsFromBackend } = require('./backendClient');
 
 // ── Z-Score anomaly detection ────────────────────────────────────────────────
 function zScore(values) {
@@ -59,6 +60,52 @@ class StreamEngine extends EventEmitter {
 
     // Start demo mode automatically
     this.start();
+  }
+
+  // Récupère un snapshot de streams depuis le backend si activé,
+  // sinon retourne le snapshot local (démo) existant.
+  async getStreamsSnapshot() {
+    // Essayer le backend (beta)
+    const backendStreams = await fetchStreamsFromBackend();
+    if (Array.isArray(backendStreams) && backendStreams.length > 0) {
+      const snapshot = {};
+      for (const [key, def] of Object.entries(STREAM_DEFINITIONS)) {
+        const match = backendStreams.find(s => s.key === key || s.id === key || s.name === def.label);
+        const value = match && typeof match.current === 'number' ? match.current : def.base;
+        const stream = this.streams[key];
+        stream.history.push(value);
+        if (stream.history.length > 200) stream.history.shift();
+
+        const h = stream.history;
+        snapshot[key] = {
+          ...def,
+          current: h.length > 0 ? h[h.length - 1] : def.base,
+          history: h.slice(-60),
+          anomaly: stream.anomaly,
+          zscore:  stream.zscore,
+        };
+      }
+      return snapshot;
+    }
+
+    // Fallback: comportement actuel (mode démo)
+    return this.getSnapshot();
+  }
+
+  async getStreams() {
+    // 1. Essayer le backend
+    const backendStreams = await fetchStreamsFromBackend();
+    if (Array.isArray(backendStreams) && backendStreams.length > 0) {
+      return backendStreams.map(s => ({
+        id: s.id,
+        name: s.name,
+        status: s.status || 'running',
+        // ...adapter au format attendu par le reste de StreamSense...
+      }));
+    }
+
+    // 2. Fallback sur la simulation locale existante
+    return getLocalSimulatedStreams(); // ta fonction actuelle
   }
 
   start() {

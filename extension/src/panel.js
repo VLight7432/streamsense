@@ -2,6 +2,7 @@
 
 const vscode = require('vscode');
 const path   = require('path');
+const { fetchDemoMetricsFromBackend } = require('./backendClient');
 
 class DashboardPanel {
   static currentPanel = null;
@@ -64,8 +65,28 @@ class DashboardPanel {
     setTimeout(() => this._sendSnapshot(), 300);
   }
 
-  _sendSnapshot() {
+  async _sendSnapshot() {
+    // Snapshot local (simulation / backend streams déjà intégrés par le moteur)
     const snap = this._engine.getSnapshot();
+
+    // Enrichir avec les métriques backend demo si dispo
+    try {
+      const backendMetrics = await fetchDemoMetricsFromBackend();
+      if (Array.isArray(backendMetrics) && backendMetrics.length > 0) {
+        for (const m of backendMetrics) {
+          // mappe les streamId backend sur les clés connues du moteur
+          const key = m.streamId; // ex: 'transactions', 'errors', 'latency'
+          const s = snap[key];
+          if (!s) continue;
+          const value = typeof m.value === 'number' ? m.value : s.current;
+          s.current = value;
+          s.history = [...(s.history || []), value].slice(-60);
+        }
+      }
+    } catch (e) {
+      console.warn('[StreamSense] Erreur lors de la récupération des métriques backend demo:', e.message);
+    }
+
     const alerts = this._engine.alerts.slice(0, 20);
     const sources = this._engine.sources;
     this._panel.webview.postMessage({
