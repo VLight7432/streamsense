@@ -23,17 +23,18 @@ jobs:
         with:
           node-version: '24.x'
 
-      - name: npm install, build, and test
+      - name: Install backend dependencies
+        working-directory: backend
         run: |
           npm install
           npm run build --if-present
           npm run test --if-present
 
-      - name: Upload artifact for deployment job
+      - name: Upload backend artifact for deployment
         uses: actions/upload-artifact@v4
         with:
           name: node-app
-          path: .
+          path: backend
 
   deploy:
     runs-on: ubuntu-latest
@@ -62,4 +63,3 @@ jobs:
           app-name: 'streamsense'
           slot-name: 'Production'
           package: .
-          
