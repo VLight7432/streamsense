@@ -1,13 +1,18 @@
 {
   "name": "streamsense-backend",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "StreamSense backend (Express + WebSocket)",
   "main": "src/server.js",
   "scripts": {
     "dev": "NODE_ENV=development node src/server.js",
     "start": "NODE_ENV=production node src/server.js"
   },
-  "keywords": ["streamsense", "backend", "express", "websocket"],
+  "keywords": [
+    "streamsense",
+    "backend",
+    "express",
+    "websocket"
+  ],
   "author": "",
   "license": "MIT",
   "type": "commonjs",
@@ -16,6 +21,8 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.0",
     "express": "^4.19.0",
+    "express-rate-limit": "^8.3.1",
+    "node-fetch": "^3.3.2",
     "stripe": "^16.0.0",
     "ws": "^8.16.0"
   }

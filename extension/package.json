@@ -2,7 +2,7 @@
   "name": "streamsense",
   "displayName": "StreamSense — Real-time Data Intelligence",
   "description": "Detect anomalies and monitor your data streams directly in VS Code. AI-powered insights without leaving your editor.",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "publisher": "streamsense",
   "icon": "resources/icon.png",
   "engines": { "vscode": "^1.85.0" },
@@ -111,7 +111,7 @@
         },
         "streamsense.apiUrl": {
           "type": "string",
-          "default": "https://api.streamsense.io",
+          "default": "https://stream-sense.org/api",
           "description": "StreamSense Cloud API endpoint (used for SaaS, not for local beta backend)"
         },
         "streamsense.refreshInterval": {
@@ -185,9 +185,9 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/streamsense/vscode-extension"
+    "url": "https://github.com/VLight7432/streamsense"
   },
-  "bugs": { "url": "https://github.com/streamsense/vscode-extension/issues" },
-  "homepage": "https://streamsense.io",
+  "bugs": { "url": "https://github.com/VLight7432/streamsense/issues" },
+  "homepage": "https://stream-sense.org",
   "license": "MIT"
 }

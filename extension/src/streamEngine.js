@@ -62,6 +62,39 @@ class StreamEngine extends EventEmitter {
     this.start();
   }
 
+  // ── Alert config ──────────────────────────────────────────────────────────
+  getAlertConfig() {
+    const saved = this.context.workspaceState.get('streamsense.alertConfig', {});
+    const config = {};
+    for (const [key, def] of Object.entries(STREAM_DEFINITIONS)) {
+      config[key] = {
+        enabled:    saved[key]?.enabled    ?? true,
+        warnZ:      saved[key]?.warnZ      ?? def.warn,
+        critZ:      saved[key]?.critZ      ?? def.crit,
+        cusumLimit: saved[key]?.cusumLimit ?? 10,
+        label:      def.label,
+        color:      def.color,
+        unit:       def.unit,
+      };
+    }
+    return config;
+  }
+
+  setAlertConfig(config) {
+    // Ne stocker que les champs éditables (pas label/color/unit)
+    const toSave = {};
+    for (const [key, val] of Object.entries(config)) {
+      if (!STREAM_DEFINITIONS[key]) continue;
+      toSave[key] = {
+        enabled:    !!val.enabled,
+        warnZ:      Math.max(0.5, Number(val.warnZ)      || STREAM_DEFINITIONS[key].warn),
+        critZ:      Math.max(0.5, Number(val.critZ)      || STREAM_DEFINITIONS[key].crit),
+        cusumLimit: Math.max(1,   Number(val.cusumLimit) || 10),
+      };
+    }
+    this.context.workspaceState.update('streamsense.alertConfig', toSave);
+  }
+
   // Récupère un snapshot de streams depuis le backend si activé,
   // sinon retourne le snapshot local (démo) existant.
   async getStreamsSnapshot() {
@@ -105,7 +138,7 @@ class StreamEngine extends EventEmitter {
     }
 
     // 2. Fallback sur la simulation locale existante
-    return getLocalSimulatedStreams(); // ta fonction actuelle
+    return this.getSnapshot();
   }
 
   start() {
@@ -149,22 +182,25 @@ class StreamEngine extends EventEmitter {
       const drift = cusum(window);
       stream.zscore = z;
 
-      const cfg = this.context.workspaceState.get('streamsense.threshold', 2.5);
-      const threshold = typeof cfg === 'number' ? cfg : 2.5;
+      const alertCfg = this.getAlertConfig()[key];
+      const warnZ      = alertCfg.warnZ;
+      const critZ      = alertCfg.critZ;
+      const cusumLimit = alertCfg.cusumLimit;
+      const enabled    = alertCfg.enabled;
 
       const wasAnomaly = stream.anomaly;
-      stream.anomaly = z > threshold || drift.upper > 10 || drift.lower > 10;
+      stream.anomaly = enabled && (z > warnZ || drift.upper > cusumLimit || drift.lower > cusumLimit);
 
       // New anomaly detected → create alert
       if (stream.anomaly && !wasAnomaly) {
-        const severity = z > def.crit ? 'critical' : 'warning';
+        const severity = z > critZ ? 'critical' : 'warning';
         const alert = {
           id:       `${key}-${Date.now()}`,
           streamKey: key,
           label:    def.label,
           color:    def.color,
           message:  `${def.label} anomaly: ${value.toFixed(1)}${def.unit} (z=${z.toFixed(2)}σ)`,
-          detail:   `Detected via ${z > threshold ? 'Z-Score' : 'CUSUM drift'}. ${severity === 'critical' ? 'Immediate action recommended.' : 'Monitor closely.'}`,
+          detail:   `Detected via ${z > warnZ ? 'Z-Score' : 'CUSUM drift'}. ${severity === 'critical' ? 'Immediate action recommended.' : 'Monitor closely.'}`,
           severity,
           timestamp: new Date().toISOString(),
         };

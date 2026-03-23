@@ -2,7 +2,7 @@
 
 const vscode = require('vscode');
 const path   = require('path');
-const { fetchDemoMetricsFromBackend } = require('./backendClient');
+const { fetchDemoMetricsFromBackend, fetchLicenseProfile } = require('./backendClient');
 
 class DashboardPanel {
   static currentPanel = null;
@@ -45,6 +45,9 @@ class DashboardPanel {
       path.join(context.extensionPath, 'resources', 'icon-mono.svg')
     );
 
+    // Envoyer le plan de licence au webview
+    this._initLicenseBadge();
+
     // Send data updates to webview
     this._dataListener = engine.on('data', () => {
       if (!this._disposed) this._sendSnapshot();
@@ -63,6 +66,15 @@ class DashboardPanel {
 
     // Initial data push
     setTimeout(() => this._sendSnapshot(), 300);
+  }
+
+  async _initLicenseBadge() {
+    try {
+      const profile = await fetchLicenseProfile();
+      this._panel.webview.postMessage({ type: 'licenseProfile', profile });
+    } catch (e) {
+      // en cas d'erreur, on reste silencieux et on n'affiche pas de badge spécifique
+    }
   }
 
   async _sendSnapshot() {
@@ -99,6 +111,14 @@ class DashboardPanel {
     switch (msg.type) {
       case 'ready':
         this._sendSnapshot();
+        this._panel.webview.postMessage({ type: 'alertConfig', config: this._engine.getAlertConfig() });
+        break;
+      case 'getAlertConfig':
+        this._panel.webview.postMessage({ type: 'alertConfig', config: this._engine.getAlertConfig() });
+        break;
+      case 'updateAlertConfig':
+        this._engine.setAlertConfig(msg.config);
+        this._panel.webview.postMessage({ type: 'alertConfig', config: this._engine.getAlertConfig() });
         break;
       case 'toggleStream':
         this._engine.toggle();
@@ -128,7 +148,7 @@ class DashboardPanel {
             .join(' | ');
 
           const body = {
-            model: 'claude-sonnet-4-20250514',
+            model: 'claude-sonnet-4-6',
             max_tokens: 1000,
             messages: [{
               role: 'user',
@@ -205,6 +225,11 @@ class DashboardPanel {
   button.primary:hover { background:#fff; }
   button.danger { border-color:var(--red)55; color:var(--red); }
 
+  /* Plan badge */
+  .plan-badge { font-size:10px; padding:2px 6px; border-radius:10px; border:1px solid var(--border); color:var(--muted); text-transform:uppercase; letter-spacing:1.5px; }
+  .plan-badge.pro { border-color:var(--cyan); color:var(--cyan); }
+  .plan-badge.lifetime { border-color:var(--amber); color:var(--amber); }
+
   /* Tabs */
   .tabs { display:flex; border-bottom:1px solid var(--border); padding:0 20px; }
   .tab { padding:10px 16px; cursor:pointer; font-size:11px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); border-bottom:2px solid transparent; transition:all 0.15s; }
@@ -266,6 +291,22 @@ class DashboardPanel {
   /* Scrollbar */
   ::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-track { background:transparent; }
   ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+  /* Alert config */
+  .config-grid { display:flex; flex-direction:column; gap:10px; }
+  .config-card { background:var(--input-bg); border:1px solid var(--border); border-radius:2px; padding:14px 16px; }
+  .config-card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .config-card-title { font-size:12px; font-weight:500; }
+  .config-fields { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  .config-field { display:flex; flex-direction:column; gap:4px; }
+  .config-label { font-size:10px; color:var(--muted); letter-spacing:1.5px; text-transform:uppercase; }
+  .config-input { background:#ffffff08; border:1px solid var(--border); color:var(--fg); padding:5px 8px; font-family:inherit; font-size:12px; border-radius:2px; width:100%; }
+  .config-input:focus { outline:none; border-color:var(--cyan); }
+  .config-toggle { display:flex; align-items:center; gap:8px; cursor:pointer; }
+  .config-toggle input[type=checkbox] { width:14px; height:14px; accent-color:var(--cyan); cursor:pointer; }
+  .config-save { margin-top:16px; display:flex; justify-content:flex-end; gap:8px; align-items:center; }
+  .config-saved { color:var(--green); font-size:11px; opacity:0; transition:opacity 0.3s; }
+  .config-saved.show { opacity:1; }
 </style>
 </head>
 <body>
@@ -273,6 +314,7 @@ class DashboardPanel {
 <div class="header">
   <span class="logo">Stream<span>Sense</span></span>
   <div class="header-actions">
+    <span id="planBadge" class="plan-badge">FREE</span>
     <div class="status-dot on" id="statusDot"></div>
     <span id="statusText" style="color:var(--muted);font-size:11px">LIVE</span>
     <button onclick="send('toggleStream')">⏸ Pause</button>
@@ -286,6 +328,7 @@ class DashboardPanel {
   <div class="tab" onclick="setTab('alerts', this)">Alertes <span id="alertCount"></span></div>
   <div class="tab" onclick="setTab('ai', this)">Analyse IA</div>
   <div class="tab" onclick="setTab('sources', this)">Sources</div>
+  <div class="tab" onclick="setTab('config', this)">⚙ Config</div>
 </div>
 
 <!-- DASHBOARD -->
@@ -333,6 +376,18 @@ class DashboardPanel {
   </div>
 </div>
 
+<!-- CONFIG -->
+<div id="tab-config" class="tab-pane">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <span style="color:var(--muted);font-size:11px">Seuils de détection par flux — Z-Score &amp; CUSUM</span>
+    <button class="primary" onclick="saveAlertConfig()">Enregistrer</button>
+  </div>
+  <div class="config-grid" id="configGrid"></div>
+  <div class="config-save">
+    <span class="config-saved" id="configSaved">✓ Enregistré</span>
+  </div>
+</div>
+
 <!-- SOURCES -->
 <div id="tab-sources" class="tab-pane">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
@@ -345,10 +400,30 @@ class DashboardPanel {
 <script>
   const vscode = acquireVsCodeApi();
   let state = { snap: {}, alerts: [], sources: [], isRunning: true };
+  let alertConfig = {};
   let chartHistories = {};
   let activeTab = 'dashboard';
 
   function send(type, data) { vscode.postMessage({ type, ...data }); }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function setPlanBadge(profile) {
+    const el = document.getElementById('planBadge');
+    if (!el) return;
+    const plan = (profile && profile.plan || 'free').toLowerCase();
+    el.className = 'plan-badge';
+    if (plan === 'pro') el.classList.add('pro');
+    if (plan === 'lifetime') el.classList.add('lifetime');
+    el.textContent = plan.toUpperCase();
+  }
 
   function setTab(id, el) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -357,6 +432,7 @@ class DashboardPanel {
     if (el) el.classList.add('active');
     activeTab = id;
     if (id === 'charts') renderCharts();
+    if (id === 'config') { if (Object.keys(alertConfig).length) renderAlertConfig(); else send('getAlertConfig'); }
   }
 
   // ── Sparkline ──────────────────────────────────────────────────────────────
@@ -499,15 +575,15 @@ class DashboardPanel {
     }
 
     list.innerHTML = alerts.map(a => \`
-      <div class="alert-item" style="border-color:\${a.color}">
+      <div class="alert-item" style="border-color:\${escapeHtml(a.color)}">
         <div class="alert-top">
-          <span class="alert-msg">\${a.message}</span>
+          <span class="alert-msg">\${escapeHtml(a.message)}</span>
           <span class="alert-time">\${new Date(a.timestamp).toLocaleTimeString('fr-FR')}</span>
         </div>
         <div style="display:flex;gap:6px;margin-bottom:6px">
-          <span class="metric-badge" style="color:\${a.color};border-color:\${a.color}44">\${a.severity}</span>
+          <span class="metric-badge" style="color:\${escapeHtml(a.color)};border-color:\${escapeHtml(a.color)}44">\${escapeHtml(a.severity)}</span>
         </div>
-        <div class="alert-detail">\${a.detail}</div>
+        <div class="alert-detail">\${escapeHtml(a.detail)}</div>
       </div>
     \`).join('');
   }
@@ -531,12 +607,66 @@ class DashboardPanel {
     list.innerHTML = state.sources.map(s => \`
       <div class="source-item">
         <div>
-          <div class="source-name">\${s.type}</div>
-          \${s.config?.host ? \`<div style="color:var(--muted);font-size:10px">\${s.config.host}\${s.config.database ? '/' + s.config.database : ''}</div>\` : ''}
+          <div class="source-name">\${escapeHtml(s.type)}</div>
+          \${s.config?.host ? \`<div style="color:var(--muted);font-size:10px">\${escapeHtml(s.config.host)}\${s.config.database ? '/' + escapeHtml(s.config.database) : ''}</div>\` : ''}
         </div>
-        <span class="source-status \${s.status}">\${s.status.toUpperCase()}</span>
+        <span class="source-status \${escapeHtml(s.status)}">\${escapeHtml(s.status.toUpperCase())}</span>
       </div>
     \`).join('') || '<div style="color:var(--muted);padding:20px;text-align:center">Aucune source connectée</div>';
+  }
+
+  // ── Alert config ───────────────────────────────────────────────────────────
+  function renderAlertConfig() {
+    const grid = document.getElementById('configGrid');
+    if (!grid || !Object.keys(alertConfig).length) return;
+
+    grid.innerHTML = Object.entries(alertConfig).map(([key, cfg]) => \`
+      <div class="config-card" id="cfg-\${escapeHtml(key)}">
+        <div class="config-card-header">
+          <span class="config-card-title" style="color:\${escapeHtml(cfg.color)}">\${escapeHtml(cfg.label)}</span>
+          <label class="config-toggle">
+            <input type="checkbox" id="cfg-enabled-\${escapeHtml(key)}" \${cfg.enabled ? 'checked' : ''}>
+            <span style="font-size:11px;color:var(--muted)">Activé</span>
+          </label>
+        </div>
+        <div class="config-fields">
+          <div class="config-field">
+            <label class="config-label" for="cfg-warnz-\${escapeHtml(key)}">Seuil Warning (σ)</label>
+            <input class="config-input" type="number" id="cfg-warnz-\${escapeHtml(key)}"
+              min="0.5" max="10" step="0.1" value="\${cfg.warnZ}">
+          </div>
+          <div class="config-field">
+            <label class="config-label" for="cfg-critz-\${escapeHtml(key)}">Seuil Critique (σ)</label>
+            <input class="config-input" type="number" id="cfg-critz-\${escapeHtml(key)}"
+              min="0.5" max="10" step="0.1" value="\${cfg.critZ}">
+          </div>
+          <div class="config-field">
+            <label class="config-label" for="cfg-cusum-\${escapeHtml(key)}">CUSUM Limite</label>
+            <input class="config-input" type="number" id="cfg-cusum-\${escapeHtml(key)}"
+              min="1" max="100" step="1" value="\${cfg.cusumLimit}">
+          </div>
+        </div>
+      </div>
+    \`).join('');
+  }
+
+  function saveAlertConfig() {
+    const config = {};
+    for (const key of Object.keys(alertConfig)) {
+      const enabled    = document.getElementById(\`cfg-enabled-\${key}\`)?.checked ?? true;
+      const warnZ      = parseFloat(document.getElementById(\`cfg-warnz-\${key}\`)?.value) || alertConfig[key].warnZ;
+      const critZ      = parseFloat(document.getElementById(\`cfg-critz-\${key}\`)?.value) || alertConfig[key].critZ;
+      const cusumLimit = parseInt(document.getElementById(\`cfg-cusum-\${key}\`)?.value)   || alertConfig[key].cusumLimit;
+      config[key] = { enabled, warnZ, critZ, cusumLimit };
+    }
+    send('updateAlertConfig', { config });
+
+    // Feedback visuel
+    const saved = document.getElementById('configSaved');
+    if (saved) {
+      saved.classList.add('show');
+      setTimeout(() => saved.classList.remove('show'), 2000);
+    }
   }
 
   // ── Message handler ────────────────────────────────────────────────────────
@@ -544,7 +674,7 @@ class DashboardPanel {
     if (msg.type === 'snapshot') {
       state = { ...state, ...msg.payload };
       renderDashboard();
-      if (activeTab === 'charts') renderCharts(); else renderCharts(); // keep up to date
+      renderCharts(); // keep up to date
       renderAlerts();
       renderSources();
       renderAISnapshot();
@@ -567,10 +697,22 @@ class DashboardPanel {
         </div>\`;
     }
     if (msg.type === 'aiResult') {
-      document.getElementById('aiContent').innerHTML = \`<div class="ai-text">\${msg.text}</div>\`;
+      const aiEl = document.getElementById('aiContent');
+      const div = document.createElement('div');
+      div.className = 'ai-text';
+      div.textContent = msg.text;
+      aiEl.innerHTML = '';
+      aiEl.appendChild(div);
+    }
+    if (msg.type === 'alertConfig') {
+      alertConfig = msg.config;
+      renderAlertConfig();
     }
     if (msg.type === 'focusStream') {
       setTab('charts');
+    }
+    if (msg.type === 'licenseProfile') {
+      setPlanBadge(msg.profile);
     }
   });
 
