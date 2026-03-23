@@ -2,7 +2,7 @@
 
 > **Real-time anomaly detection for your data streams — directly in your editor.**
 
-[![Version](https://img.shields.io/badge/version-0.1.1-00c8f0.svg)](https://marketplace.visualstudio.com/items?itemName=streamsense.streamsense)
+[![Version](https://img.shields.io/badge/version-0.1.3-00c8f0.svg)](https://marketplace.visualstudio.com/items?itemName=streamsense.streamsense)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ---
@@ -91,7 +91,7 @@ Pour l’analyse IA, ajoutez votre clé StreamSense/Claude dans les settings :
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `streamsense.apiKey` | `""` | StreamSense / Claude API key for AI analysis |
-| `streamsense.apiUrl` | `https://api.streamsense.io` | Cloud API endpoint (future SaaS) |
+| `streamsense.apiUrl` | `https://stream-sense.org/api` | Cloud API endpoint (future SaaS) |
 | `streamsense.refreshInterval` | `2000` | Data refresh in ms (min: 500) |
 | `streamsense.anomalyThreshold` | `2.5` | Z-score threshold (σ) |
 | `streamsense.enableNotifications` | `true` | VS Code notifications for critical anomalies |
@@ -146,9 +146,9 @@ Use the **Anomaly Simulator** in the dashboard to inject artificial anomalies an
 
 ## Contributing
 
-StreamSense is in **private beta**. [Join the waitlist](https://streamsense.io) to get early access and influence the roadmap.
+StreamSense is in **private beta**. [Join the waitlist](https://stream-sense.org) to get early access and influence the roadmap.
 
-Bug reports and feature requests: [GitHub Issues](https://github.com/streamsense/vscode-extension/issues)
+Bug reports and feature requests: [GitHub Issues](https://github.com/VLight7432/streamsense/issues)
 
 ---
 
