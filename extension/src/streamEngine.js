@@ -23,6 +23,35 @@ function cusum(values, k = 0.5) {
   return { upper, lower };
 }
 
+// ── Linear regression — tendance sur les N dernières valeurs ──────────────────
+function linearTrend(values) {
+  const n = values.length;
+  if (n < 5) return { slope: 0, direction: 'stable', changePct: 0 };
+  const meanX = (n - 1) / 2;
+  const meanY = values.reduce((a, b) => a + b, 0) / n;
+  let num = 0, den = 0;
+  for (let i = 0; i < n; i++) {
+    num += (i - meanX) * (values[i] - meanY);
+    den += (i - meanX) ** 2;
+  }
+  const slope = den > 0 ? num / den : 0;
+  // Variation relative sur la fenêtre entière (slope * n / moyenne)
+  const changePct = meanY !== 0 ? +(slope * n / Math.abs(meanY) * 100).toFixed(1) : 0;
+  const direction = Math.abs(changePct) < 2 ? 'stable'
+    : changePct > 0 ? 'hausse' : 'baisse';
+  return { slope: +slope.toFixed(4), direction, changePct };
+}
+
+// ── Stats descriptives ────────────────────────────────────────────────────────
+function stats(values) {
+  if (!values.length) return { avg: 0, min: 0, max: 0, stddev: 0 };
+  const avg = values.reduce((a, b) => a + b, 0) / values.length;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const stddev = Math.sqrt(values.reduce((a, b) => a + (b - avg) ** 2, 0) / values.length);
+  return { avg: +avg.toFixed(2), min: +min.toFixed(2), max: +max.toFixed(2), stddev: +stddev.toFixed(2) };
+}
+
 // ── Stream definitions ────────────────────────────────────────────────────────
 const STREAM_DEFINITIONS = {
   transactions: { label: 'Transactions/s',    unit: '/s',  base: 450,  noise: 40,  color: '#00c8f0', warn: 2.5, crit: 3.5 },
@@ -258,12 +287,15 @@ class StreamEngine extends EventEmitter {
     const snapshot = {};
     for (const [key, def] of Object.entries(STREAM_DEFINITIONS)) {
       const h = this.streams[key].history;
+      const window60 = h.slice(-60);
       snapshot[key] = {
         ...def,
-        current: h.length > 0 ? h[h.length - 1] : def.base,
-        history: h.slice(-60),
-        anomaly: this.streams[key].anomaly,
-        zscore:  this.streams[key].zscore,
+        current:  h.length > 0 ? h[h.length - 1] : def.base,
+        history:  window60,
+        anomaly:  this.streams[key].anomaly,
+        zscore:   this.streams[key].zscore,
+        trend:    linearTrend(window60),
+        stats:    stats(window60),
       };
     }
     return snapshot;

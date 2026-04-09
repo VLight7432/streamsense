@@ -2,7 +2,7 @@
 
 const vscode = require('vscode');
 const path   = require('path');
-const { fetchDemoMetricsFromBackend, fetchLicenseProfile } = require('./backendClient');
+const { fetchDemoMetricsFromBackend, fetchLicenseProfile, fetchAIAnalysis } = require('./backendClient');
 
 class DashboardPanel {
   static currentPanel = null;
@@ -143,27 +143,44 @@ class DashboardPanel {
         this._panel.webview.postMessage({ type: 'aiLoading' });
 
         try {
-          const summary = Object.values(snap)
-            .map(s => `${s.label}: ${s.current.toFixed(1)}${s.unit}${s.anomaly ? ' ⚠' : ''}`)
-            .join(' | ');
+          const metrics = Object.values(snap).map(s => ({
+            label:   s.label,
+            current: s.current,
+            unit:    s.unit,
+            anomaly: s.anomaly,
+            zscore:  s.zscore,
+            trend:   s.trend,
+            stats:   s.stats,
+          }));
+          const alertMessages = alerts.map(a => a.message);
 
-          const body = {
-            model: 'claude-sonnet-4-6',
-            max_tokens: 1000,
-            messages: [{
-              role: 'user',
-              content: `Tu es un analyste de données expert. Analyse ces métriques temps réel d'une plateforme:\n\n${summary}\n\nAlertes actives: ${alerts.length > 0 ? alerts.map(a => a.message).join(', ') : 'aucune'}\n\nDonne une analyse concise en 3-4 phrases: situation actuelle, cause probable si anomalie, et recommandation actionnable. Réponds en français professionnel, sans bullet points.`
-            }]
-          };
+          // Priorité : backend (clé côté serveur) → fallback direct (clé VS Code)
+          let text = await fetchAIAnalysis(metrics, alertMessages);
 
-          const headers = { 'Content-Type': 'application/json' };
-          if (apiKey) { headers['x-api-key'] = apiKey; headers['anthropic-version'] = '2023-06-01'; }
+          if (!text) {
+            if (!apiKey) throw new Error('Aucune clé API configurée. Activez le backend ou renseignez streamsense.apiKey.');
 
-          const res = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST', headers, body: JSON.stringify(body)
-          });
-          const data = await res.json();
-          const text = data.content?.[0]?.text || 'Analyse indisponible.';
+            const summary = metrics.map(m => `${m.label}: ${m.current.toFixed(1)}${m.unit}${m.anomaly ? ' ⚠' : ''}`).join(' | ');
+            const res = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+              },
+              body: JSON.stringify({
+                model: 'claude-sonnet-4-6',
+                max_tokens: 1024,
+                messages: [{
+                  role: 'user',
+                  content: `Tu es un analyste de données expert. Analyse ces métriques temps réel d'une plateforme:\n\n${summary}\n\nAlertes actives: ${alertMessages.length > 0 ? alertMessages.join(', ') : 'aucune'}\n\nDonne une analyse concise en 3-4 phrases: situation actuelle, cause probable si anomalie, et recommandation actionnable. Réponds en français professionnel, sans bullet points.`,
+                }],
+              }),
+            });
+            const data = await res.json();
+            text = data.content?.[0]?.text || 'Analyse indisponible.';
+          }
+
           this._panel.webview.postMessage({ type: 'aiResult', text });
         } catch (e) {
           this._panel.webview.postMessage({ type: 'aiResult', text: `Erreur: ${e.message}` });

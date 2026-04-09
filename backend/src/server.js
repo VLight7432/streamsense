@@ -5,6 +5,7 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const dotenv = require('dotenv');
 const { listStreams } = require('./services/streamsService');
+const { analyzeMetrics } = require('./services/aiService');
 const { getStripeClient } = require('./connectors/stripeClient');
 const { licenseMiddleware } = require('./authMiddleware');
 
@@ -169,6 +170,33 @@ app.post('/billing/checkout', async (req, res) => {
   } catch (e) {
     error('Error in /billing/checkout', { err: e.message || String(e) });
     return res.status(500).json({ error: 'stripe_error' });
+  }
+});
+
+// ── AI : analyse des métriques via Claude ────────────────────────────────────
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10, // 10 analyses / minute par IP
+  message: { error: 'too_many_requests' },
+});
+
+app.post('/ai/analyze', apiKeyMiddleware, aiLimiter, async (req, res) => {
+  const { metrics, alerts } = req.body || {};
+
+  if (!Array.isArray(metrics) || metrics.length === 0) {
+    return res.status(400).json({ error: 'invalid_payload' });
+  }
+
+  try {
+    const text = await analyzeMetrics({ metrics, alerts: alerts || [] });
+    info('AI analysis served', { metricsCount: metrics.length });
+    return res.json({ text });
+  } catch (e) {
+    if (e.message === 'claude_not_configured') {
+      return res.status(503).json({ error: 'claude_not_configured' });
+    }
+    error('Error in /ai/analyze', { err: e.message || String(e) });
+    return res.status(500).json({ error: 'ai_error' });
   }
 });
 

@@ -14,6 +14,41 @@ function getBackendConfig() {
   };
 }
 
+function doPost(url, body) {
+  const { apiKey, license } = getBackendConfig();
+
+  let parsed;
+  try { parsed = new URL(url); } catch { return Promise.reject(new Error('Invalid backend URL')); }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return Promise.reject(new Error('Invalid backend URL protocol'));
+  }
+
+  return new Promise((resolve, reject) => {
+    const lib = parsed.protocol === 'https:' ? https : http;
+    const payload = JSON.stringify(body);
+    const options = {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload),
+      },
+    };
+    if (apiKey)  options.headers['x-streamsense-key']     = apiKey;
+    if (license) options.headers['x-streamsense-license'] = license;
+
+    const req = lib.request(url, options, res => {
+      let data = '';
+      res.on('data', chunk => (data += chunk));
+      res.on('end', () => {
+        try { resolve(data ? JSON.parse(data) : {}); } catch (e) { reject(e); }
+      });
+    });
+    req.on('error', reject);
+    req.write(payload);
+    req.end();
+  });
+}
+
 function doRequest(url) {
   const { apiKey, license } = getBackendConfig();
 
@@ -108,8 +143,24 @@ async function fetchLicenseProfile() {
   }
 }
 
+async function fetchAIAnalysis(metrics, alerts) {
+  const { enabled, url } = getBackendConfig();
+  if (!enabled || !url) return null;
+
+  try {
+    const base = url.replace(/\/$/, '');
+    const json = await doPost(`${base}/ai/analyze`, { metrics, alerts });
+    if (json.error) return null;
+    return json.text || null;
+  } catch (err) {
+    console.warn('[StreamSense] Erreur backend /ai/analyze:', err.message);
+    return null;
+  }
+}
+
 module.exports = {
   fetchStreamsFromBackend,
   fetchDemoMetricsFromBackend,
   fetchLicenseProfile,
+  fetchAIAnalysis,
 };
