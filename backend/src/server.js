@@ -73,6 +73,25 @@ const billingLimiter = rateLimit({
 
 app.use(express.json({ limit: '64kb' }));
 
+// Root endpoint — API info (public)
+app.get('/', (req, res) => {
+  res.json({
+    service: 'streamsense-backend',
+    version: '0.2.0',
+    description: 'StreamSense backend API (Express + WebSocket)',
+    endpoints: {
+      'GET  /':                  'API information (this response)',
+      'GET  /health':            'Health check',
+      'GET  /license/profile':   'License profile for the authenticated user',
+      'GET  /streams':           'List all streams (requires API key)',
+      'GET  /metrics/demo':      'Simulated demo metrics (requires API key)',
+      'POST /billing/checkout':  'Create a Stripe Checkout session (requires API key)',
+      'POST /ai/analyze':        'Analyze metrics with Claude AI (requires API key)',
+      'WS   /':                  'WebSocket connection for real-time events',
+    },
+  });
+});
+
 // Endpoint de santé (public)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'streamsense-backend' });
