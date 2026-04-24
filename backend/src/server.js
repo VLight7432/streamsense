@@ -73,6 +73,11 @@ const billingLimiter = rateLimit({
 
 app.use(express.json({ limit: '64kb' }));
 
+// Route racine (public)
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', service: 'streamsense-backend' });
+});
+
 // Endpoint de santé (public)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'streamsense-backend' });
