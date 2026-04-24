@@ -219,7 +219,7 @@ wss.on('connection', (ws, req) => {
   });
 });
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 8080;
 
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
